@@ -1,5 +1,4 @@
 import express from "express";
-import upload from "../middleware/uploadMiddleware.js";
 
 import {
     createProject,
@@ -12,21 +11,14 @@ import {
 } from "../controllers/projectController.js";
 
 import protect from "../middleware/authmiddleware.js";
+import upload from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
-// Public Routes
 router.get("/", getProjects);
-
 router.get("/search", searchProjects);
-
-// My Projects
 router.get("/my-projects", protect, getMyProjects);
-
-// Single Project
 router.get("/:id", getSingleProject);
-
-// Create Project with Image + PDF
 router.post(
     "/",
     protect,
@@ -37,10 +29,6 @@ router.post(
     createProject
 );
 
-// Delete Project
-router.delete("/:id", protect, deleteProject);
-
-// Update Project with Image + PDF
 router.put(
     "/:id",
     protect,
@@ -50,5 +38,7 @@ router.put(
     ]),
     updateProject
 );
+
+router.delete("/:id", protect, deleteProject);
 
 export default router;

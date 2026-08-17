@@ -1,45 +1,119 @@
 import Project from "../models/project.js";
+import cloudinary from "../config/cloudinary.js";
 
-// Create Project
+// ===============================
+// Cloudinary Upload Function
+// ===============================
+const uploadToCloudinary = (fileBuffer, resourceType = "image") => {
+    return new Promise((resolve, reject) => {
+
+        const stream = cloudinary.uploader.upload_stream(
+            {
+                folder: "projecthub",
+                resource_type: resourceType
+            },
+            (error, result) => {
+
+                if (error) {
+                    reject(error);
+                } else {
+                    resolve(result);
+                }
+
+            }
+        );
+
+        stream.end(fileBuffer);
+    });
+};
+
+
+// ===============================
+// CREATE PROJECT
+// ===============================
 export const createProject = async (req, res) => {
+
     try {
 
+        let imageUrl = "";
+        let pdfUrl = "";
+
+        // IMAGE UPLOAD
+        if (req.files?.image) {
+
+            const imageResult = await uploadToCloudinary(
+                req.files.image[0].buffer,
+                "image"
+            );
+
+            imageUrl = imageResult.secure_url;
+        }
+
+
+        // PDF UPLOAD
+        if (req.files?.pdf) {
+
+            const pdfResult = await uploadToCloudinary(
+                req.files.pdf[0].buffer,
+                "raw"
+            );
+
+            pdfUrl = pdfResult.secure_url;
+        }
+
+
+        // CREATE PROJECT
         const project = await Project.create({
+
             title: req.body.title,
+
             description: req.body.description,
+
             technology: req.body.technology,
+
             category: req.body.category,
+
             guideName: req.body.guideName,
+
             githubLink: req.body.githubLink,
 
-            // Image
-            image: req.files?.image
-                ? `/uploads/${req.files.image[0].filename}`
-                : "",
+            image: imageUrl,
 
-            // PDF
-            pdf: req.files?.pdf
-                ? `/uploads/${req.files.pdf[0].filename}`
-                : "",
+            pdf: pdfUrl,
 
             createdBy: req.user.id
+
         });
+
 
         res.status(201).json({
+
             message: "Project Created Successfully",
+
             project
+
         });
 
+
     } catch (error) {
+
+        console.log("CREATE PROJECT ERROR:", error);
+
         res.status(500).json({
+
             message: error.message
+
         });
+
     }
 };
 
 
-// Get All Projects
+// ===============================
+// GET ALL PROJECTS
+// ===============================
 export const getProjects = async (req, res) => {
+
     try {
 
         const projects = await Project.find()
@@ -48,167 +122,285 @@ export const getProjects = async (req, res) => {
         res.status(200).json(projects);
 
     } catch (error) {
+
         res.status(500).json({
+
             message: error.message
+
         });
+
     }
 };
 
 
-// Search Project
+// ===============================
+// SEARCH PROJECT
+// ===============================
 export const searchProjects = async (req, res) => {
+
     try {
 
         const { keyword } = req.query;
 
         const projects = await Project.find({
+
             title: {
+
                 $regex: keyword,
+
                 $options: "i"
+
             }
+
         });
 
         res.status(200).json(projects);
 
     } catch (error) {
+
         res.status(500).json({
+
             message: error.message
+
         });
+
     }
 };
 
 
-// Get Single Project
+// ===============================
+// GET SINGLE PROJECT
+// ===============================
 export const getSingleProject = async (req, res) => {
+
     try {
 
         const project = await Project.findById(req.params.id)
             .populate("createdBy", "name email");
 
+
         if (!project) {
+
             return res.status(404).json({
+
                 message: "Project Not Found"
+
             });
+
         }
+
 
         res.status(200).json(project);
 
     } catch (error) {
+
         res.status(500).json({
+
             message: error.message
+
         });
+
     }
 };
 
 
-// Get My Projects
+// ===============================
+// GET MY PROJECTS
+// ===============================
 export const getMyProjects = async (req, res) => {
+
     try {
 
         const projects = await Project.find({
+
             createdBy: req.user.id
+
         }).populate("createdBy", "name email");
+
 
         res.status(200).json(projects);
 
     } catch (error) {
+
         res.status(500).json({
+
             message: error.message
+
         });
+
     }
 };
 
 
-// Delete Project
+// ===============================
+// DELETE PROJECT
+// ===============================
 export const deleteProject = async (req, res) => {
+
     try {
 
         const project = await Project.findById(req.params.id);
 
+
         if (!project) {
+
             return res.status(404).json({
+
                 message: "Project Not Found"
+
             });
+
         }
 
-        // Only Project Owner can delete
+
+        // ONLY OWNER CAN DELETE
         if (project.createdBy.toString() !== req.user.id) {
+
             return res.status(401).json({
+
                 message: "Not Authorized"
+
             });
+
         }
+
 
         await Project.findByIdAndDelete(req.params.id);
 
+
         res.status(200).json({
+
             message: "Project Deleted Successfully"
+
         });
 
     } catch (error) {
+
         res.status(500).json({
+
             message: error.message
+
         });
+
     }
 };
 
 
-// Update Project
+// ===============================
+// UPDATE PROJECT
+// ===============================
 export const updateProject = async (req, res) => {
+
     try {
 
         const project = await Project.findById(req.params.id);
 
+
         if (!project) {
+
             return res.status(404).json({
+
                 message: "Project Not Found"
+
             });
+
         }
 
-        // Only Project Owner can update
+
+        // ONLY OWNER CAN UPDATE
         if (project.createdBy.toString() !== req.user.id) {
+
             return res.status(401).json({
+
                 message: "Not Authorized"
+
             });
+
         }
 
-        // Text fields
+
+        // TEXT DATA
         const updateData = {
+
             title: req.body.title,
+
             description: req.body.description,
+
             technology: req.body.technology,
+
             category: req.body.category,
+
             guideName: req.body.guideName,
+
             githubLink: req.body.githubLink
+
         };
 
-        // New Image uploaded
+
+        // NEW IMAGE
         if (req.files?.image) {
-            updateData.image =
-                `/uploads/${req.files.image[0].filename}`;
+
+            const imageResult = await uploadToCloudinary(
+
+                req.files.image[0].buffer,
+
+                "image"
+
+            );
+
+            updateData.image = imageResult.secure_url;
+
         }
 
-        // New PDF uploaded
+
+        // NEW PDF
         if (req.files?.pdf) {
-            updateData.pdf =
-                `/uploads/${req.files.pdf[0].filename}`;
+
+            const pdfResult = await uploadToCloudinary(
+
+                req.files.pdf[0].buffer,
+
+                "raw"
+
+            );
+
+            updateData.pdf = pdfResult.secure_url;
+
         }
 
-        const updatedProject = await Project.findByIdAndUpdate(
-            req.params.id,
-            updateData,
-            {
-                new: true
-            }
-        );
+
+        const updatedProject =
+            await Project.findByIdAndUpdate(
+
+                req.params.id,
+
+                updateData,
+
+                {
+                    new: true
+                }
+
+            );
+
 
         res.status(200).json({
+
             message: "Project Updated Successfully",
+
             project: updatedProject
+
         });
 
+
     } catch (error) {
+
+        console.log("UPDATE PROJECT ERROR:", error);
+
         res.status(500).json({
+
             message: error.message
+
         });
+
     }
 };
