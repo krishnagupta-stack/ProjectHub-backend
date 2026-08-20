@@ -14,6 +14,7 @@ connectDB();
 const app = express();
 
 app.use(cors());
+
 app.use(express.json());
 
 // Uploads folder
@@ -26,6 +27,7 @@ app.use(
 app.use("/api/auth", authRoutes);
 app.use("/api/projects", projectRoutes);
 
+// Test
 app.get("/", (req, res) => {
     res.send("ProjectHub Backend Running...");
 });
